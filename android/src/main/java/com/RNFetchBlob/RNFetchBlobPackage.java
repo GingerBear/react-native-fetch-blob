@@ -10,13 +10,26 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import javax.net.ssl.SSLContext;
+
+import okhttp3.Authenticator;
+
 
 public class RNFetchBlobPackage implements ReactPackage {
+
+
+    private Authenticator _authenticator;
+    private SSLContext _sslContext;
+
+    public RNFetchBlobPackage(Authenticator authenticator, SSLContext sslContext) {
+        _authenticator = authenticator;
+        _sslContext = sslContext;
+    }
 
     @Override
     public List<NativeModule> createNativeModules(ReactApplicationContext reactContext) {
         List<NativeModule> modules = new ArrayList<>();
-        modules.add(new RNFetchBlob(reactContext));
+        modules.add(new RNFetchBlob(reactContext, _authenticator, _sslContext));
         return modules;
     }
 

@@ -20,6 +20,8 @@ import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.modules.network.ForwardingCookieHandler;
 import com.facebook.react.modules.network.CookieJarContainer;
 import com.facebook.react.modules.network.OkHttpClientProvider;
+
+import okhttp3.Authenticator;
 import okhttp3.OkHttpClient;
 import okhttp3.JavaNetCookieJar;
 
@@ -28,6 +30,8 @@ import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+
+import javax.net.ssl.SSLContext;
 
 import static android.app.Activity.RESULT_OK;
 import static com.RNFetchBlob.RNFetchBlobConst.GET_CONTENT_INTENT;
@@ -39,6 +43,9 @@ public class RNFetchBlob extends ReactContextBaseJavaModule {
     private final CookieJarContainer mCookieJarContainer;
     private final OkHttpClient mClient;
 
+    private Authenticator _authenticator;
+    private SSLContext _sslContext;
+
     static ReactApplicationContext RCTContext;
     static LinkedBlockingQueue<Runnable> taskQueue = new LinkedBlockingQueue<>();
     static ThreadPoolExecutor threadPool = new ThreadPoolExecutor(5, 10, 5000, TimeUnit.MILLISECONDS, taskQueue);
@@ -47,7 +54,7 @@ public class RNFetchBlob extends ReactContextBaseJavaModule {
     static public boolean ActionViewVisible = false;
     static HashMap<Integer, Promise> promiseTable = new HashMap<>();
 
-    public RNFetchBlob(ReactApplicationContext reactContext) {
+    public RNFetchBlob(ReactApplicationContext reactContext, Authenticator authenticator, SSLContext sslContext) {
 
         super(reactContext);
 
@@ -55,6 +62,9 @@ public class RNFetchBlob extends ReactContextBaseJavaModule {
         mCookieHandler = new ForwardingCookieHandler(reactContext);
         mCookieJarContainer = (CookieJarContainer) mClient.cookieJar();
         mCookieJarContainer.setCookieJar(new JavaNetCookieJar(mCookieHandler));
+
+        _authenticator = authenticator;
+        _sslContext = sslContext;
 
         RCTContext = reactContext;
         reactContext.addActivityEventListener(new ActivityEventListener() {
@@ -323,12 +333,12 @@ public class RNFetchBlob extends ReactContextBaseJavaModule {
 
     @ReactMethod
     public void fetchBlob(ReadableMap options, String taskId, String method, String url, ReadableMap headers, String body, final Callback callback) {
-        new RNFetchBlobReq(options, taskId, method, url, headers, body, null, mClient, callback).run();
+        new RNFetchBlobReq(options, taskId, method, url, headers, body, null, mClient, _authenticator, _sslContext, callback).run();
 }
 
     @ReactMethod
     public void fetchBlobForm(ReadableMap options, String taskId, String method, String url, ReadableMap headers, ReadableArray body, final Callback callback) {
-        new RNFetchBlobReq(options, taskId, method, url, headers, null, body, mClient, callback).run();
+        new RNFetchBlobReq(options, taskId, method, url, headers, null, body, mClient, _authenticator, _sslContext, callback).run();
     }
 
     @ReactMethod

@@ -37,12 +37,17 @@ import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetEncoder;
+import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.HashMap;
 
 import java.util.concurrent.TimeUnit;
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.X509TrustManager;
+
+import okhttp3.Authenticator;
 import okhttp3.Call;
 import okhttp3.ConnectionPool;
 import okhttp3.ConnectionSpec;
@@ -83,6 +88,10 @@ public class RNFetchBlobReq extends BroadcastReceiver implements Runnable {
     static HashMap<String, RNFetchBlobProgressConfig> uploadProgressReport = new HashMap<>();
     static ConnectionPool pool = new ConnectionPool();
 
+
+    private Authenticator _authenticator;
+    private SSLContext _sslContext;
+
     ReactApplicationContext ctx;
     RNFetchBlobConfig options;
     String taskId;
@@ -104,7 +113,7 @@ public class RNFetchBlobReq extends BroadcastReceiver implements Runnable {
     ArrayList<String> redirects = new ArrayList<>();
     OkHttpClient client;
 
-    public RNFetchBlobReq(ReadableMap options, String taskId, String method, String url, ReadableMap headers, String body, ReadableArray arrayBody, OkHttpClient client, final Callback callback) {
+    public RNFetchBlobReq(ReadableMap options, String taskId, String method, String url, ReadableMap headers, String body, ReadableArray arrayBody, OkHttpClient client, Authenticator authenticator, SSLContext sslContext, final Callback callback) {
         this.method = method.toUpperCase();
         this.options = new RNFetchBlobConfig(options);
         this.taskId = taskId;
@@ -114,6 +123,9 @@ public class RNFetchBlobReq extends BroadcastReceiver implements Runnable {
         this.rawRequestBody = body;
         this.rawRequestBodyArray = arrayBody;
         this.client = client;
+
+        _authenticator = authenticator;
+        _sslContext = sslContext;
 
         if(this.options.fileCache || this.options.path != null)
             responseType = ResponseType.FileStorage;
@@ -375,6 +387,8 @@ public class RNFetchBlobReq extends BroadcastReceiver implements Runnable {
             clientBuilder.followRedirects(options.followRedirect);
             clientBuilder.followSslRedirects(options.followRedirect);
             clientBuilder.retryOnConnectionFailure(true);
+            clientBuilder.authenticator(_authenticator);
+            clientBuilder.sslSocketFactory(_sslContext.getSocketFactory(), trustAllTrustManager);
 
             OkHttpClient client = enableTls12OnPreLollipop(clientBuilder).build();
 
@@ -431,6 +445,18 @@ public class RNFetchBlobReq extends BroadcastReceiver implements Runnable {
             callback.invoke("RNFetchBlob request error: " + error.getMessage() + error.getCause());
         }
     }
+
+    private static X509TrustManager trustAllTrustManager = new X509TrustManager() {
+        public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+            return new X509Certificate[0];
+        }
+
+        public void checkClientTrusted(X509Certificate[] certs, String authType) {
+        }
+
+        public void checkServerTrusted(X509Certificate[] certs, String authType) {
+        }
+    };
 
     /**
      * Remove cached information of the HTTP task
